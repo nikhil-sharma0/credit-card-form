@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import "../../css/credit-card.css";
 import "../../css/form-style.css";
 import Cards from "react-credit-cards";
@@ -10,6 +10,7 @@ export default function CreditCard() {
   const [focus, setFocus] = useState("");
   const [name, setName] = useState("");
   const [number, setNumber] = useState("");
+  const cvcRef = useRef(null);
 
   const submit = (e) => {
     e.preventDefault();
@@ -21,9 +22,23 @@ export default function CreditCard() {
     setNumber("");
   };
 
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (cvcRef.current && !cvcRef.current.contains(event.target)) {
+        // flips card when we click anywhere away from cvc field
+        setFocus("");
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [cvcRef]);
+
   // removes special characters
   const removeSpecial = (e) => {
-    var invalidChars = ["-", "+", "e", "E", " ", "."];
+    const invalidChars = ["-", "+", "e", "E", " ", "."];
     if (invalidChars.includes(e.key)) {
       e.preventDefault();
     }
@@ -41,29 +56,18 @@ export default function CreditCard() {
   // validates the length of input in case of cvv and
   // replaces invalid characters in case of card number
   const validateInput = (e) => {
-    const { name, value, maxLength, id } = e.target;
-    var temp, element;
+    const { value, maxLength, id } = e?.target;
 
     if (id === "cvv") {
-      if (value.length > maxLength) {
-        temp = value.slice(0, maxLength);
-        const num = temp;
-        element = document.getElementById(id);
-        element.value = temp;
-        console.log("name, num: ", name, num);
-        // TODO: Is setState needed?
-      } else {
-        console.log("name, value-1: ", name, value);
+      if (value.length <= maxLength) {
         setCvc(value);
       }
-    } else {
-      element = document.getElementById(id);
-      element.value = element.value.replace(
+    } else if (id === "cardNumber") {
+      const validValue = value.replace(
         /[A-Za-z}"`~_=.\->\]|<?+*/,;[:{\\!@#/'$%^&*()]/g,
         ""
       );
-      setNumber(element.value);
-      console.log("name, element.value-1: ", name, element.value);
+      setNumber(validValue);
     }
   };
 
@@ -75,37 +79,32 @@ export default function CreditCard() {
     const { name, value, id } = e.target;
 
     if (id === "cardHolder") {
-      var element = document.getElementById(id);
-      // TODO: Any better way to avoid?
       // replaces any invalid characters
-      element.value = element.value.replace(
+      const validValue = value.replace(
         /[}"`~_=.\->\]|<?+*/,\d;[:{\\!@#/'$%^&*()]/g,
         ""
       );
-      setName(element.value);
-      console.log("name, element.value-2: ", name, element.value);
+      setName(validValue);
     } else if (name === "expiry") {
-      console.log("name, value-2: ", name, value);
       setExpiry(value);
     } else if (name === "expirationYear") {
-      console.log("expirationYear: ", name, value);
       setExpirationYear(value);
     }
   };
 
-  // TODO: Add year and dynamically
+  // TODO: Add year and month dynamically
   return (
     <div>
-      <div className="credit-card ">
+      <div className="credit-card">
         <Cards
           locale={{ valid: "Expires" }}
           placeholders={{ name: "FULL NAME" }}
           cvc={cvc}
-          expiry={expiry}
-          expirationYear={expirationYear}
+          expiry={`${expiry}/${expirationYear}`}
           focused={focus}
           name={name}
           number={number}
+          preview={true}
         />
       </div>
       <div className="card">
@@ -213,6 +212,7 @@ export default function CreditCard() {
                 CVV
               </label>
               <input
+                ref={cvcRef}
                 type="number"
                 onChange={validateInput}
                 onKeyDown={removeSpecial}
@@ -221,8 +221,8 @@ export default function CreditCard() {
                 name="cvc"
                 id="cvv"
                 value={cvc}
-                className="form-control form-control-lg "
-                maxLength="4"
+                className="form-control form-control-lg"
+                maxLength="3"
               />
             </div>
           </div>
